@@ -2,6 +2,21 @@
 
 # Default email
 EMAIL=""
+MODE=""
+
+# Function to display help
+display_help() {
+    echo "Usage: $0 [option] --email <email_address>"
+    echo
+    echo "Options:"
+    echo "  --sendmail       Test sendmail functionality"
+    echo "  --logwatch       Send logwatch report"
+    echo "  --help           Display this help message"
+    echo
+    echo "Example:"
+    echo "  $0 --sendmail --email example@example.com"
+    echo "  $0 --logwatch --email example@example.com"
+}
 
 # Function to test sendmail
 test_sendmail() {
@@ -48,7 +63,8 @@ while [[ "$#" -gt 0 ]]; do
         --sendmail) MODE="sendmail" ;;
         --logwatch) MODE="logwatch" ;;
         --email) EMAIL="$2"; shift ;;
-        *) echo "Argumen tidak dikenal: $1"; exit 1 ;;
+        --help) display_help; exit 0 ;;
+        *) echo "Argumen tidak dikenal: $1"; display_help; exit 1 ;;
     esac
     shift
 done
@@ -60,5 +76,6 @@ elif [[ "$MODE" == "logwatch" ]]; then
     send_logwatch
 else
     echo "Gunakan --sendmail atau --logwatch dengan --email <email_address>"
+    display_help
     exit 1
 fi
