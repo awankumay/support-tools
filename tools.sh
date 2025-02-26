@@ -4,6 +4,13 @@
 EMAIL=""
 MODE=""
 
+# Cek apakah script dijalankan sebagai root
+if [[ $EUID -eq 0 ]]; then
+    SUDO=""
+else
+    SUDO="sudo"
+fi
+
 # Function to display help
 display_help() {
     echo "Usage: $0 [option] --email <email_address>"
@@ -45,10 +52,10 @@ send_logwatch() {
     fi
 
     # Bersihkan logwatch temp jika ada error sebelumnya
-    sudo rm -rf /tmp/logwatch.*
+    $SUDO rm -rf /tmp/logwatch.*
 
     # Jalankan logwatch
-    sudo logwatch --output mail --mailto "$EMAIL" --detail high
+    $SUDO logwatch --output mail --mailto "$EMAIL" --detail high
 
     if [[ $? -eq 0 ]]; then
         echo "Laporan logwatch berhasil dikirim ke $EMAIL"
