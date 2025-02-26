@@ -47,6 +47,12 @@ Berikut adalah beberapa contoh penggunaan `tools.sh`:
   ./tools.sh --logwatch --email example@example.com
   ```
 
+- Check Service Sendmail:
+  ```sh
+  ./tools.sh --sendmail-status
+  ```
+
+
 - Menjalankan skrip langsung dari URL menggunakan `curl`:
   ```sh
   curl -s https://raw.githubusercontent.com/awankumay/support-tools/main/tools.sh | bash -s -- --sendmail --email example@example.com

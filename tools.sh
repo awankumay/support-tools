@@ -2,33 +2,57 @@
 
 # Default email
 EMAIL=""
-MODE=""
 
 # Cek apakah script dijalankan sebagai root
-if [[ $EUID -eq 0 ]]; then
-    SUDO=""
-else
+if [[ $EUID -ne 0 ]]; then
     SUDO="sudo"
+else
+    SUDO=""
 fi
 
-# Function to display help
-display_help() {
-    echo "Usage: $0 [option] --email <email_address>"
-    echo
-    echo "Options:"
-    echo "  --sendmail       Test sendmail functionality"
-    echo "  --logwatch       Send logwatch report"
-    echo "  --help           Display this help message"
-    echo
-    echo "Example:"
-    echo "  $0 --sendmail --email example@example.com"
-    echo "  $0 --logwatch --email example@example.com"
+
+# Function to check sendmail status
+check_sendmail_status() {
+    if systemctl is-active --quiet sendmail; then
+        echo "✅ Sendmail service is running."
+    else
+        echo "❌ Sendmail service is NOT running."
+        echo "⚠️  Coba jalankan: ${SUDO} systemctl start sendmail"
+        exit 1
+    fi
 }
 
-# Function to test sendmail
+# Function to reconfigure sendmail
+reconfig_sendmail() {
+    echo "🔧 Memulai konfigurasi ulang sendmail..."
+    
+    # Hentikan service sendmail sebelum konfigurasi ulang
+    ${SUDO} systemctl stop sendmail
+
+    # Hapus konfigurasi yang lama jika perlu
+    ${SUDO} rm -rf /etc/mail/sendmail.cf /etc/mail/submit.cf
+
+    # Jalankan ulang konfigurasi
+    ${SUDO} sendmailconfig
+    
+    # Reload dan restart sendmail
+    ${SUDO} systemctl daemon-reload
+    ${SUDO} systemctl start sendmail
+    ${SUDO} systemctl enable sendmail
+
+    # Periksa apakah berhasil dijalankan
+    if systemctl is-active --quiet sendmail; then
+        echo "✅ Konfigurasi ulang sendmail berhasil!"
+    else
+        echo "❌ Gagal mengkonfigurasi ulang sendmail."
+        exit 1
+    fi
+}
+
+# Function to test sendmail (Tanpa Pengecekan Otomatis)
 test_sendmail() {
     if [[ -z "$EMAIL" ]]; then
-        echo "Error: Email tidak diberikan!"
+        echo "❌ Error: Email tidak diberikan!"
         exit 1
     fi
 
@@ -38,40 +62,41 @@ test_sendmail() {
     echo -e "Subject: $SUBJECT\n\n$BODY" | sendmail -v "$EMAIL"
 
     if [[ $? -eq 0 ]]; then
-        echo "Email berhasil dikirim ke $EMAIL"
+        echo "✅ Email berhasil dikirim ke $EMAIL"
     else
-        echo "Gagal mengirim email ke $EMAIL"
+        echo "❌ Gagal mengirim email ke $EMAIL"
     fi
 }
 
-# Function to send logwatch report
+# Function to send logwatch report (Tanpa Pengecekan Otomatis)
 send_logwatch() {
     if [[ -z "$EMAIL" ]]; then
-        echo "Error: Email tidak diberikan!"
+        echo "❌ Error: Email tidak diberikan!"
         exit 1
     fi
 
     # Bersihkan logwatch temp jika ada error sebelumnya
-    $SUDO rm -rf /tmp/logwatch.*
+    ${SUDO} rm -rf /tmp/logwatch.*
 
     # Jalankan logwatch
-    $SUDO logwatch --output mail --mailto "$EMAIL" --detail high
+    ${SUDO} logwatch --output mail --mailto "$EMAIL" --detail high
 
     if [[ $? -eq 0 ]]; then
-        echo "Laporan logwatch berhasil dikirim ke $EMAIL"
+        echo "✅ Laporan logwatch berhasil dikirim ke $EMAIL"
     else
-        echo "Gagal mengirim laporan logwatch ke $EMAIL"
+        echo "❌ Gagal mengirim laporan logwatch ke $EMAIL"
     fi
 }
 
 # Parsing arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
-        --sendmail) MODE="sendmail" ;;
-        --logwatch) MODE="logwatch" ;;
+        --sendmail | --sm) MODE="sendmail" ;;
+        --logwatch | --lw) MODE="logwatch" ;;
+        --sendmail-status | --ss) MODE="sendmail-status" ;;
+        --reconfig-sendmail | --rs) MODE="reconfig-sendmail" ;;
         --email) EMAIL="$2"; shift ;;
-        --help) display_help; exit 0 ;;
-        *) echo "Argumen tidak dikenal: $1"; display_help; exit 1 ;;
+        *) echo "❌ Argumen tidak dikenal: $1"; exit 1 ;;
     esac
     shift
 done
@@ -81,8 +106,15 @@ if [[ "$MODE" == "sendmail" ]]; then
     test_sendmail
 elif [[ "$MODE" == "logwatch" ]]; then
     send_logwatch
+elif [[ "$MODE" == "sendmail-status" ]]; then
+    check_sendmail_status
+elif [[ "$MODE" == "reconfig-sendmail" ]]; then
+    reconfig_sendmail
 else
-    echo "Gunakan --sendmail atau --logwatch dengan --email <email_address>"
-    display_help
+    echo "⚠️  Gunakan salah satu opsi berikut:"
+    echo "   --sendmail --email <email>       # Kirim test email"
+    echo "   --logwatch --email <email>       # Kirim laporan logwatch"
+    echo "   --sendmail-status                # Cek status sendmail"
+    echo "   --reconfig-sendmail              # Konfigurasi ulang sendmail"
     exit 1
 fi
